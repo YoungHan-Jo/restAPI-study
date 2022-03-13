@@ -21,5 +21,8 @@ public class EventValidator {
             errors.rejectValue("endEventDateTime", "wrongValue", "endEventDateTime is wrong.");
         }
 
+        // TODO BeginEventDateTime
+        // TODO CloseEnrollmentDateTime
+
     }
 }
