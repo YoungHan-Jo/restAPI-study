@@ -109,6 +109,7 @@ public class EventControllerTests {
                         .contentType(MediaType.APPLICATION_JSON)
                         .accept(MediaTypes.HAL_JSON)
                         .content(objectMapper.writeValueAsString(eventDto)))
+                .andDo(print())
                 .andExpect(status().isBadRequest());
 
     }
@@ -134,7 +135,14 @@ public class EventControllerTests {
                         .contentType(MediaType.APPLICATION_JSON)
                         .accept(MediaTypes.HAL_JSON)
                         .content(objectMapper.writeValueAsString(eventDto)))
-                .andExpect(status().isBadRequest());
+                .andDo(print())
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$[0].objectName").exists())
+//                .andExpect(jsonPath("$[0].field").exists()) // 글로벌에러에는 없어서 에러 날 수도 있음
+                .andExpect(jsonPath("$[0].defaultMessage").exists())
+                .andExpect(jsonPath("$[0].code").exists())
+//                .andExpect(jsonPath("$[0].rejectedValue").exists()) // 글로벌에러에는 없어서 에러 날 수도 있음
+        ;
     }
 
 }
