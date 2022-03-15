@@ -2,7 +2,9 @@ package me.jyh.restapi.events;
 
 import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
+import org.springframework.hateoas.EntityModel;
 import org.springframework.hateoas.MediaTypes;
+import org.springframework.hateoas.server.mvc.WebMvcLinkBuilder;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.Errors;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -40,12 +42,19 @@ public class EventController {
         }
 
         Event event = modelMapper.map(eventDto, Event.class);
+        event.update();
         Event savedEvent = eventRepository.save(event);
         // URI 만들기 // methodOn 매서드 호출
 //        URI createdUri = linkTo(methodOn(EventController.class).createEvent(null)).slash("{id}").toUri();
-        URI createdUri = linkTo(EventController.class).slash(savedEvent.getId()).toUri();// @RequestMapping으로 생략가능
+        WebMvcLinkBuilder selfLinkBuilder = linkTo(EventController.class).slash(savedEvent.getId()); // @RequestMapping으로 생략가능
+        URI createdUri = selfLinkBuilder.toUri();
 
-        return ResponseEntity.created(createdUri).body(event);
+        EntityModel<Event> eventEntityModel = EntityModel.of(event,
+                selfLinkBuilder.withSelfRel(), // self 링크
+                linkTo(EventController.class).withRel("query-events"),
+                selfLinkBuilder.withRel("update-event"));
+
+        return ResponseEntity.created(createdUri).body(eventEntityModel);
     }
 }
 

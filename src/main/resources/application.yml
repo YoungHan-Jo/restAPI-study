@@ -2,3 +2,9 @@ spring:
   jackson:
     deserialization:
       fail-on-unknown-properties: true
+
+server:
+  servlet:
+    encoding:
+      charset: UTF-8 #한글처리
+      force: true    #한글처리

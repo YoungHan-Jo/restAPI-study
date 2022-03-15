@@ -13,6 +13,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.nio.charset.Charset;
 import java.time.LocalDateTime;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -56,6 +57,8 @@ public class EventControllerTests {
 //        // Mockito.when(A).thenReturn(B);
 //        // A가 발생할때, B를 리턴하라.
 
+        MediaType contentType = new MediaType("application", "hal+json", Charset.forName("UTF-8"));
+
         mockMvc.perform(post("/api/events/")
                     .contentType(MediaType.APPLICATION_JSON) // 요청값 타입 설정 : json
                     .accept(MediaTypes.HAL_JSON) // 원하는 응답 설정 : hal+json
@@ -64,10 +67,14 @@ public class EventControllerTests {
                 .andExpect(status().isCreated()) // status() import하기
                 .andExpect(jsonPath("id").exists())
                 .andExpect(header().exists(HttpHeaders.LOCATION))
-                .andExpect(header().string(HttpHeaders.CONTENT_TYPE, MediaTypes.HAL_JSON_VALUE))
-                .andExpect(jsonPath("id").value(Matchers.not(100)))
-                .andExpect(jsonPath("free").value(Matchers.not(true)))
+                .andExpect(header().string(HttpHeaders.CONTENT_TYPE, contentType.toString()))
+//                .andExpect(jsonPath("id").value(Matchers.not(100)))
+                .andExpect(jsonPath("free").value(false))
+                .andExpect(jsonPath("offline").value(true))
                 .andExpect(jsonPath("eventStatus").value(EventStatus.DRAFT.name()))
+                .andExpect(jsonPath("_links.self").exists())
+                .andExpect(jsonPath("_links.query-events").exists())
+                .andExpect(jsonPath("_links.update-event").exists())
         ;
     }
 
