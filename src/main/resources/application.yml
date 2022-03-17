@@ -3,6 +3,25 @@ spring:
     deserialization:
       fail-on-unknown-properties: true
 
+  datasource:
+    url: jdbc:mariadb://binter.synology.me:3307/restapitest?characterEncoding=UTF-8&serverTimezone=UTC
+    driver-class-name: org.mariadb.jdbc.Driver
+    username: britishinter
+    password: Britain001!
+
+  jpa:
+    hibernate:
+      ddl-auto: create
+    properties:
+      hibernate:
+        format_sql: true
+        default_batch_fetch_size: 500
+        jdbc.lob.non_contextual_creation: true
+
+logging.level:
+  org.hibernate.SQL: debug
+  org.hibernate.type: trace
+
 server:
   servlet:
     encoding:
