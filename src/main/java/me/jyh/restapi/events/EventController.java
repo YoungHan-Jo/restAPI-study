@@ -1,20 +1,23 @@
 package me.jyh.restapi.events;
 
 import lombok.RequiredArgsConstructor;
+import me.jyh.restapi.common.ErrorsResource;
 import org.modelmapper.ModelMapper;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PagedResourcesAssembler;
 import org.springframework.hateoas.EntityModel;
 import org.springframework.hateoas.Link;
 import org.springframework.hateoas.MediaTypes;
+import org.springframework.hateoas.PagedModel;
 import org.springframework.hateoas.server.mvc.WebMvcLinkBuilder;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.Errors;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
 import java.net.URI;
+import java.util.Optional;
 
 import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
 
@@ -30,16 +33,14 @@ public class EventController {
     @PostMapping // requestMapping으로 생략
     public ResponseEntity createEvent(@RequestBody @Valid EventDto eventDto, Errors errors) {
         if (errors.hasErrors()) {
-            return ResponseEntity.badRequest().body(errors);
+            return badRequest(errors);
             // 에러를 바디에 담아서 보내면 보내질거 같지만 안보내짐(errors는 자바빈 스펙을 준수하고 있지 않아서 json으로 변환 할 수 없기때문)
             // 밑에 body(event)에서 event는 자바 bean 스팩을 준수하고 있기 때문에 objectMapper(BeanSerializer)를 사용해서 json으로 자동 변환 가능함
-            // -> 수동으로 Serializer 클래스를 만들어서 @JsonComponent로 objectMapper에 등록 시키면 해결됨 
-
+            // -> 수동으로 Serializer 클래스를 만들어서 @JsonComponent로 objectMapper에 등록 시키면 해결됨
         }
-
         eventValidator.validate(eventDto, errors);
         if (errors.hasErrors()) {
-            return ResponseEntity.badRequest().body(errors);
+            return badRequest(errors);
         }
 
         Event event = modelMapper.map(eventDto, Event.class);
@@ -58,5 +59,38 @@ public class EventController {
 
         return ResponseEntity.created(createdUri).body(eventEntityModel);
     }
+
+    @GetMapping
+    public ResponseEntity queryEvents(Pageable pageable, PagedResourcesAssembler<Event> assembler) {
+        Page<Event> page = eventRepository.findAll(pageable);
+        PagedModel<EntityModel<Event>> entityModels = assembler.toModel(page, e -> new EventResource(e));
+        entityModels.add(Link.of("/docs/index.html#resources-events-list").withRel("profile"));
+        return ResponseEntity.ok(entityModels);
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity getEntity(@PathVariable Long id) {
+        Optional<Event> optionalEvent = eventRepository.findById(id);
+        if (optionalEvent.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        Event event = optionalEvent.get();
+        EventResource eventResource = new EventResource(event);
+        eventResource.add(Link.of("/docs/index.html#resources-events-get").withRel("profile"));
+        return ResponseEntity.ok(eventResource);
+    }
+
+
+
+
+
+
+
+
+    private ResponseEntity<EntityModel<Errors>> badRequest(Errors errors) {
+        return ResponseEntity.badRequest().body(new ErrorsResource(errors));
+    }
+
 }
 

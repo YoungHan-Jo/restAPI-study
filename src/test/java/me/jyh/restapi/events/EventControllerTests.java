@@ -3,7 +3,9 @@ package me.jyh.restapi.events;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import me.jyh.restapi.common.RestDocsConfiguration;
 import me.jyh.restapi.common.TestDescription;
+import org.hibernate.mapping.Array;
 import org.junit.Test;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.restdocs.AutoConfigureRestDocs;
@@ -14,21 +16,26 @@ import org.springframework.context.annotation.Import;
 import org.springframework.hateoas.MediaTypes;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.restdocs.mockmvc.RestDocumentationRequestBuilders;
+import org.springframework.restdocs.payload.JsonFieldType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.nio.charset.Charset;
 import java.time.LocalDateTime;
+import java.util.stream.IntStream;
 
 import static org.springframework.restdocs.headers.HeaderDocumentation.*;
 import static org.springframework.restdocs.hypermedia.HypermediaDocumentation.linkWithRel;
 import static org.springframework.restdocs.hypermedia.HypermediaDocumentation.links;
 import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.document;
 import static org.springframework.restdocs.payload.PayloadDocumentation.*;
+import static org.springframework.restdocs.request.RequestDocumentation.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest // 통합테스트 - default SpringBootTest.WebEnvironment.MOCK; // 웹 테스트는 그냥 통합테스트로 하는게 나음
@@ -43,6 +50,9 @@ public class EventControllerTests {
 
     @Autowired
     ObjectMapper objectMapper;
+    
+    @Autowired
+    EventRepository eventRepository;
     
     //WebMvcTest 는 repository는 빈 등록 안해줌
 //    @MockBean // mock 객체 빈으로 등록
@@ -207,12 +217,154 @@ public class EventControllerTests {
                         .content(objectMapper.writeValueAsString(eventDto)))
                 .andDo(print())
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$[0].objectName").exists())
+                .andExpect(jsonPath("errors[0].objectName").exists())
+                .andExpect(jsonPath("errors[0].defaultMessage").exists())
+                .andExpect(jsonPath("errors[0].code").exists())
+                .andExpect(jsonPath("_links.index").exists())
 //                .andExpect(jsonPath("$[0].field").exists()) // 글로벌에러에는 없어서 에러 날 수도 있음
-                .andExpect(jsonPath("$[0].defaultMessage").exists())
-                .andExpect(jsonPath("$[0].code").exists())
 //                .andExpect(jsonPath("$[0].rejectedValue").exists()) // 글로벌에러에는 없어서 에러 날 수도 있음
         ;
     }
+
+    @Test
+    @DisplayName("30개의 이벤트를 10개씩 두번재 페이지 조회하기")
+    public void queryEvents() throws Exception {
+        //given
+//        IntStream.range(0,30).forEach(i -> {
+//            generateEvent(i);
+//        });
+        // 람다식으로 전환
+        IntStream.range(0,30).forEach(this::generateEvent);
+
+        //when
+
+        //then
+        mockMvc.perform(get("/api/events")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaTypes.HAL_JSON)
+                        .param("page", "1")
+                        .param("size","10")
+                        .param("sort", "name,DESC"))// 요청값 타입 설정 : json
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("page").exists())
+                .andExpect(jsonPath("_embedded.eventList[0]._links.self").exists())
+                .andExpect(jsonPath("_links.self").exists())
+                .andExpect(jsonPath("_links.profile").exists())
+                .andDo(document("query_events",
+                        links(
+                                linkWithRel("self").description("link to self"),
+                                linkWithRel("first").description("first page"),
+                                linkWithRel("prev").description("previous page"),
+                                linkWithRel("next").description("next page"),
+                                linkWithRel("last").description("last page"),
+                                linkWithRel("profile").description("link to profile")
+                        ),
+                        requestHeaders(
+                                headerWithName(HttpHeaders.ACCEPT).description("accept header"),
+                                headerWithName(HttpHeaders.CONTENT_TYPE).description("content type header")
+                        ),
+                        requestParameters(
+                                parameterWithName("size").description("한 페이지 당 개수"),
+                                parameterWithName("page").description("페이지 번호 0페이지 부터 시작"),
+                                parameterWithName("sort").description("검색 카테고리, 정렬")
+                        ),
+                        responseHeaders(
+//                                headerWithName(HttpHeaders.LOCATION).description("location header"),
+                                headerWithName(HttpHeaders.CONTENT_TYPE).description("content type header")
+                        ),
+                        responseFields(
+                                fieldWithPath("page.size").description("한 페이지 당 개수"),
+                                fieldWithPath("page.totalElements").description("전체 개수"),
+                                fieldWithPath("page.totalPages").description("전체 페이지 수"),
+                                fieldWithPath("page.number").description("페이지 수 0부터 시작"),
+                                fieldWithPath("_links.self.href").description("link to self"),
+                                fieldWithPath("_links.first.href").description("first page"),
+                                fieldWithPath("_links.prev.href").description("previous page"),
+                                fieldWithPath("_links.next.href").description("next page"),
+                                fieldWithPath("_links.last.href").description("last page"),
+                                fieldWithPath("_links.profile.href").description("link to profile")
+                        ).and(subsectionWithPath("_embedded").type(JsonFieldType.OBJECT).description("이벤트 리스트")) // 생략하고 싶을 때
+                ))
+        ;
+    }
+
+
+    @Test
+    @DisplayName("기존에 이벤트를 하나 조회하기")
+    public void getEvent() throws Exception {
+       //given
+        Event event = generateEvent(100);
+        //when & then
+        mockMvc.perform(RestDocumentationRequestBuilders.get("/api/events/{id}", event.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaTypes.HAL_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("name").exists())
+                .andExpect(jsonPath("id").exists())
+                .andExpect(jsonPath("_links.self").exists())
+                .andExpect(jsonPath("_links.profile").exists())
+                .andDo(document("get_event",
+                        links(
+                                linkWithRel("self").description("link to self"),
+                                linkWithRel("profile").description("link to profile")
+                        ),
+                        requestHeaders(
+                                headerWithName(HttpHeaders.ACCEPT).description("accept header"),
+                                headerWithName(HttpHeaders.CONTENT_TYPE).description("content type header")
+                        ),
+                        pathParameters(
+                                parameterWithName("id").description("유저 id")
+                        ),
+                        responseHeaders(
+//                                headerWithName(HttpHeaders.LOCATION).description("location header"),
+                                headerWithName(HttpHeaders.CONTENT_TYPE).description("content type header")
+                        ),
+                        responseFields(
+                                fieldWithPath("id").description("identifier of new event"),
+                                fieldWithPath("name").description("Name of new event"),
+                                fieldWithPath("description").description("description of new event"),
+                                fieldWithPath("beginEnrollmentDateTime").description("enrollment time of begin of new event"),
+                                fieldWithPath("closeEnrollmentDateTime").description("enrollment time of close of new event"),
+                                fieldWithPath("beginEventDateTime").description("date time of begin of new event"),
+                                fieldWithPath("endEventDateTime").description("date time of end of new event"),
+                                fieldWithPath("location").description("location of new event"),
+                                fieldWithPath("basePrice").description("base Price of new event"),
+                                fieldWithPath("maxPrice").description("max Price of new event"),
+                                fieldWithPath("limitOfEnrollment").description("limit Of Enrollment of new event"),
+                                fieldWithPath("offline").description("it tells is this event is offline event or not"),
+                                fieldWithPath("free").description("it tells is this event is free or not"),
+                                fieldWithPath("eventStatus").description("event status"),
+                                fieldWithPath("_links.self.href").description("link to self"),
+                                fieldWithPath("_links.profile.href").description("link to profile")
+                        )
+                ))
+        ;
+    }
+
+    @Test
+    @DisplayName("없는 이벤트를 조회 했을 때 404 응답받기")
+    public void getEvent404() throws Exception {
+       //given
+
+       //when
+        mockMvc.perform(get("/api/events/999999")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaTypes.HAL_JSON))
+                .andExpect(status().isNotFound());
+
+    }
+
+
+
+
+    private Event generateEvent(int index) {
+        Event event = Event.builder()
+                .name("event " + index)
+                .description("test event")
+                .build();
+        return eventRepository.save(event);
+    }
+
 
 }

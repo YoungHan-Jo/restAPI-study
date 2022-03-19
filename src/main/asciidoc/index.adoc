@@ -104,7 +104,7 @@ operation::index[snippets='response-body,http-response,links']
 
 `GET` 요청을 사용하여 서비스의 모든 이벤트를 조회할 수 있다.
 
-operation::get-events[snippets='response-fields,curl-request,http-response,links']
+operation::query_events[snippets='request-parameters,curl-request,http-request,request-headers,response-headers,response-fields,http-response,links']
 
 [[resources-events-create]]
 === 이벤트 생성
@@ -118,7 +118,7 @@ operation::create_event[snippets='request-fields,curl-request,http-request,reque
 
 `Get` 요청을 사용해서 기존 이벤트 하나를 조회할 수 있다.
 
-operation::get-event[snippets='request-fields,curl-request,http-response,links']
+operation::get_event[snippets='path-parameters,curl-request,http-request,request-headers,response-headers,response-fields,http-response,links']
 
 [[resources-events-update]]
 === 이벤트 수정
