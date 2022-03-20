@@ -43,7 +43,7 @@ public class EventController {
             return badRequest(errors);
         }
 
-        Event event = modelMapper.map(eventDto, Event.class);
+        Event event = modelMapper.map(eventDto, Event.class); // eventDto에 있는걸 Event클래스로 담기
         event.update();
         Event savedEvent = eventRepository.save(event);
         // URI 만들기 // methodOn 매서드 호출
@@ -81,11 +81,34 @@ public class EventController {
         return ResponseEntity.ok(eventResource);
     }
 
+    @PutMapping("/{id}")
+    public ResponseEntity updateEvents(@PathVariable Long id,
+                                       @RequestBody @Valid EventDto eventDto,
+                                       Errors errors) {
+        Optional<Event> optionalEvent = this.eventRepository.findById(id);
+        if (optionalEvent.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
 
+        if (errors.hasErrors()) {
+            return badRequest(errors);
+        }
 
+        this.eventValidator.validate(eventDto, errors);
+        if (errors.hasErrors()) {
+            return badRequest(errors);
+        }
 
+        Event existingEvent = optionalEvent.get();
+        this.modelMapper.map(eventDto, existingEvent); // map(A,B) A에서 B로 전부 Setter
+        Event savedEvent = this.eventRepository.save(existingEvent);
 
+        EntityModel<Event> eventResource = EntityModel.of(savedEvent,
+                Link.of("/docs/index.html#resources-events-update").withRel("profile"));
 
+        return ResponseEntity.ok(eventResource);
+
+    }
 
 
     private ResponseEntity<EntityModel<Errors>> badRequest(Errors errors) {

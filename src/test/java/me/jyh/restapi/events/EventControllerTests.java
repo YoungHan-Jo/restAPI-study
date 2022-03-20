@@ -1,26 +1,15 @@
 package me.jyh.restapi.events;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import me.jyh.restapi.common.RestDocsConfiguration;
+import me.jyh.restapi.common.BaseTest;
 import me.jyh.restapi.common.TestDescription;
-import org.hibernate.mapping.Array;
 import org.junit.Test;
 import org.junit.jupiter.api.DisplayName;
-import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.restdocs.AutoConfigureRestDocs;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.context.annotation.Import;
 import org.springframework.hateoas.MediaTypes;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.restdocs.mockmvc.RestDocumentationRequestBuilders;
 import org.springframework.restdocs.payload.JsonFieldType;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.junit4.SpringRunner;
-import org.springframework.test.web.servlet.MockMvc;
 
 import java.nio.charset.Charset;
 import java.time.LocalDateTime;
@@ -32,27 +21,18 @@ import static org.springframework.restdocs.hypermedia.HypermediaDocumentation.li
 import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.document;
 import static org.springframework.restdocs.payload.PayloadDocumentation.*;
 import static org.springframework.restdocs.request.RequestDocumentation.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 
-@RunWith(SpringRunner.class)
-@SpringBootTest // 통합테스트 - default SpringBootTest.WebEnvironment.MOCK; // 웹 테스트는 그냥 통합테스트로 하는게 나음
-@AutoConfigureMockMvc
-@AutoConfigureRestDocs
-@Import(RestDocsConfiguration.class)
-@ActiveProfiles("test") // application-test.yml도 오버라이딩으로 적용됨
-public class EventControllerTests {
 
-    @Autowired
-    MockMvc mockMvc;
+public class EventControllerTests extends BaseTest {
 
-    @Autowired
-    ObjectMapper objectMapper;
-    
     @Autowired
     EventRepository eventRepository;
+
+    MediaType contentType = new MediaType("application", "hal+json", Charset.forName("UTF-8"));
     
     //WebMvcTest 는 repository는 빈 등록 안해줌
 //    @MockBean // mock 객체 빈으로 등록
@@ -81,7 +61,7 @@ public class EventControllerTests {
 //        // Mockito.when(A).thenReturn(B);
 //        // A가 발생할때, B를 리턴하라.
 
-        MediaType contentType = new MediaType("application", "hal+json", Charset.forName("UTF-8"));
+
 
         mockMvc.perform(post("/api/events/")
                     .contentType(MediaType.APPLICATION_JSON) // 요청값 타입 설정 : json
@@ -355,6 +335,84 @@ public class EventControllerTests {
 
     }
 
+    @Test
+    @DisplayName("이벤트를 정상적으로 수정하기")
+    public void updateEvent() throws Exception {
+       //given
+        Event event = generateEvent(200);
+
+        EventDto eventDto = modelMapper.map(event, EventDto.class);// event를 EventDto클래스에 담기
+        String eventName = "Updated Event";
+        eventDto.setName(eventName);
+
+        //when & then
+        mockMvc.perform(RestDocumentationRequestBuilders.put("/api/events/{id}", event.getId())
+                        .contentType(MediaType.APPLICATION_JSON) // 보내는 데이터 타입
+                        .content(objectMapper.writeValueAsString(eventDto)) // 보내는 값
+                        .accept(MediaTypes.HAL_JSON)) // 기대값
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("name").value(eventName))
+        ;
+    }
+
+    @Test
+    @DisplayName("입력값이 비어있는 경우에 이벤트 수정 실패")
+    public void updateEvent400_Empty() throws Exception {
+        //given
+        Event event = generateEvent(200);
+
+        EventDto eventDto = new EventDto();
+
+        //when & then
+        mockMvc.perform(RestDocumentationRequestBuilders.put("/api/events/{id}", event.getId())
+                        .contentType(MediaType.APPLICATION_JSON) // 보내는 데이터 타입
+                        .content(objectMapper.writeValueAsString(eventDto)) // 보내는 값
+                        .accept(MediaTypes.HAL_JSON)) // 기대값
+                .andDo(print())
+                .andExpect(status().isBadRequest())
+        ;
+    }
+
+    @Test
+    @DisplayName("입력값이 잘못된 경우에 이벤트 수정 실패")
+    public void updateEvent400_Wrong() throws Exception {
+        //given
+        Event event = generateEvent(200);
+
+        EventDto eventDto = modelMapper.map(event, EventDto.class);
+        eventDto.setBasePrice(20000);
+        eventDto.setMaxPrice(10000);
+
+        //when & then
+        mockMvc.perform(RestDocumentationRequestBuilders.put("/api/events/{id}", event.getId())
+                        .contentType(MediaType.APPLICATION_JSON) // 보내는 데이터 타입
+                        .content(objectMapper.writeValueAsString(eventDto)) // 보내는 값
+                        .accept(MediaTypes.HAL_JSON)) // 기대값
+                .andDo(print())
+                .andExpect(status().isBadRequest())
+        ;
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 이벤트일 경우  이벤트 수정 실패")
+    public void updateEvent404() throws Exception {
+        //given
+        Event event = generateEvent(200);
+
+        EventDto eventDto = modelMapper.map(event, EventDto.class);
+        eventDto.setBasePrice(20000);
+        eventDto.setMaxPrice(10000);
+
+        //when & then
+        mockMvc.perform(RestDocumentationRequestBuilders.put("/api/events/999999")
+                        .contentType(MediaType.APPLICATION_JSON) // 보내는 데이터 타입
+                        .content(objectMapper.writeValueAsString(eventDto)) // 보내는 값
+                        .accept(MediaTypes.HAL_JSON)) // 기대값
+                .andDo(print())
+                .andExpect(status().isNotFound())
+        ;
+    }
 
 
 
@@ -362,6 +420,17 @@ public class EventControllerTests {
         Event event = Event.builder()
                 .name("event " + index)
                 .description("test event")
+                .beginEnrollmentDateTime(LocalDateTime.of(2022, 3, 13, 21, 35))
+                .closeEnrollmentDateTime(LocalDateTime.of(2022, 3, 14, 21, 35))
+                .beginEventDateTime(LocalDateTime.of(2022, 3, 16, 21, 35))
+                .endEventDateTime(LocalDateTime.of(2022, 3, 17, 21, 35))
+                .basePrice(100)
+                .maxPrice(200)
+                .limitOfEnrollment(100)
+                .location("강남역 D2 스타트업 팩토리")
+                .free(false)
+                .offline(true)
+                .eventStatus(EventStatus.DRAFT)
                 .build();
         return eventRepository.save(event);
     }
