@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.Set;
 
@@ -27,6 +28,9 @@ public class AccountServiceTest extends BaseTest {
     @Autowired
     AccountRepository accountRepository;
 
+    @Autowired
+    PasswordEncoder passwordEncoder;
+
     @Test
     @DisplayName("userDetailsService에 있는 유저 비밀번호와 일치하는지")
     public void findByUsername() throws Exception {
@@ -39,14 +43,14 @@ public class AccountServiceTest extends BaseTest {
                 .roles(Set.of(AccountRole.ADMIN, AccountRole.USER))
                 .build();
 
-        accountRepository.save(account);
+        accountService.saveAccount(account);
 
         //when
         UserDetailsService userDetailsService = this.accountService; // 인터페이스로 상속 받기
         UserDetails userDetails = userDetailsService.loadUserByUsername(username);
 
        //then
-        assertThat(userDetails.getPassword()).isEqualTo(password);
+        assertThat(passwordEncoder.matches(password, userDetails.getPassword())).isTrue();
     }
 
 //    @Test(expected = UsernameNotFoundException.class)
