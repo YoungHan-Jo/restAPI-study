@@ -3,6 +3,7 @@ package me.jyh.restapi.configs;
 import me.jyh.restapi.accounts.Account;
 import me.jyh.restapi.accounts.AccountRole;
 import me.jyh.restapi.accounts.AccountService;
+import me.jyh.restapi.common.AppProperties;
 import me.jyh.restapi.common.BaseTest;
 import org.junit.Test;
 import org.junit.jupiter.api.DisplayName;
@@ -22,6 +23,8 @@ public class AuthServerConfigTest extends BaseTest {
     @Autowired
     AccountService accountService;
 
+    @Autowired
+    AppProperties appProperties;
 
     // Spring 이 제공하는 password 방법과 refresh token 을 사용할 것임
     // 최초 토큰을 발급 받을 때는 password 방법으로 발급 받을 것
@@ -31,25 +34,10 @@ public class AuthServerConfigTest extends BaseTest {
     @Test
     @DisplayName("인증 토큰을 발급 받는 테스트")
     public void getAuthToken() throws Exception {
-        //given
-        String username = "verin126@gmail.com";
-        String password = "1234";
-        Account account = Account.builder()
-                .email(username)
-                .password(password)
-                .roles(Set.of(AccountRole.ADMIN, AccountRole.USER))
-                .build();
-
-        accountService.saveAccount(account);
-
-        String clientId = "myApp";
-        String clientSecret = "pass";
-
-        // when & then
         mockMvc.perform(post("/oauth/token")
-                        .with(httpBasic(clientId,clientSecret))
-                        .param("username",username)
-                        .param("password", password)
+                        .with(httpBasic(appProperties.getClientId(),appProperties.getClientSecret()))
+                        .param("username",appProperties.getUserUsername())
+                        .param("password", appProperties.getUserPassword())
                         .param("grant_type", "password")) // 사용할 인증 타입
                 .andDo(print())
                 .andExpect(status().isOk())

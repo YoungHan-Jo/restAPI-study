@@ -1,6 +1,7 @@
 package me.jyh.restapi.configs;
 
 import me.jyh.restapi.accounts.AccountService;
+import me.jyh.restapi.common.AppProperties;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -25,6 +26,8 @@ public class AuthServerConfig extends AuthorizationServerConfigurerAdapter {
     AccountService accountService;
     @Autowired
     TokenStore tokenStore;
+    @Autowired
+    AppProperties appProperties;
 
     @Override
     public void configure(AuthorizationServerSecurityConfigurer security) throws Exception {
@@ -35,10 +38,10 @@ public class AuthServerConfig extends AuthorizationServerConfigurerAdapter {
     public void configure(ClientDetailsServiceConfigurer clients) throws Exception {
 //        clients.jdbc() // 이상적인건 jdbc를 써서 db에 저장하는 것
         clients.inMemory() // 인 메모리
-                .withClient("myApp")
+                .withClient(appProperties.getClientId())
                 .authorizedGrantTypes("password", "refresh_token")
                 .scopes("read", "write") // 권한 범위
-                .secret(passwordEncoder.encode("pass"))
+                .secret(passwordEncoder.encode(appProperties.getClientSecret()))
                 .accessTokenValiditySeconds(10 * 60) // 엑세스 토큰 유효 시간 단위 초
                 .refreshTokenValiditySeconds(6 * 10 * 60); // 리프레시토큰 유효시간 단위 초
     }

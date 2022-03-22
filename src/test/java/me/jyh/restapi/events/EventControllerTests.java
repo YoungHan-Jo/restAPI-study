@@ -4,6 +4,7 @@ import me.jyh.restapi.accounts.Account;
 import me.jyh.restapi.accounts.AccountRepository;
 import me.jyh.restapi.accounts.AccountRole;
 import me.jyh.restapi.accounts.AccountService;
+import me.jyh.restapi.common.AppProperties;
 import me.jyh.restapi.common.BaseTest;
 import me.jyh.restapi.common.TestDescription;
 import org.junit.Before;
@@ -47,6 +48,9 @@ public class EventControllerTests extends BaseTest {
 
     @Autowired
     AccountRepository accountRepository;
+
+    @Autowired
+    AppProperties appProperties;
 
     MediaType contentType = new MediaType("application", "hal+json", Charset.forName("UTF-8"));
 
@@ -472,24 +476,18 @@ public class EventControllerTests extends BaseTest {
     }
 
     private String getAccessToken() throws Exception {
-        String username = "verin126@gmail.com";
-        String password = "1234";
         Account account = Account.builder()
-                .email(username)
-                .password(password)
+                .email(appProperties.getUserUsername())
+                .password(appProperties.getUserPassword())
                 .roles(Set.of(AccountRole.ADMIN, AccountRole.USER))
                 .build();
-
         accountService.saveAccount(account);
-
-        String clientId = "myApp";
-        String clientSecret = "pass";
 
         // when & then
         ResultActions perform = mockMvc.perform(post("/oauth/token")
-                .with(httpBasic(clientId, clientSecret))
-                .param("username", username)
-                .param("password", password)
+                .with(httpBasic(appProperties.getClientId(), appProperties.getClientSecret()))
+                .param("username", appProperties.getUserUsername())
+                .param("password", appProperties.getUserPassword())
                 .param("grant_type", "password"));// 사용할 인증 타입
         MockHttpServletResponse response = perform.andReturn().getResponse();
         String responseBody = response.getContentAsString();
