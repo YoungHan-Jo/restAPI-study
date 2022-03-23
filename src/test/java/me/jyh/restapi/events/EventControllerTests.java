@@ -149,7 +149,7 @@ public class EventControllerTests extends BaseTest {
                                 fieldWithPath("offline").description("it tells is this event is offline event or not"),
                                 fieldWithPath("free").description("it tells is this event is free or not"),
                                 fieldWithPath("eventStatus").description("event status"),
-                                fieldWithPath("manager").description(""),
+                                fieldWithPath("manager.id").description("user id num"),
                                 fieldWithPath("_links.self.href").description("link to self"),
                                 fieldWithPath("_links.query-events.href").description("link to query events"),
                                 fieldWithPath("_links.update-event.href").description("link to update event"),
@@ -242,7 +242,7 @@ public class EventControllerTests extends BaseTest {
 
 
     @Test
-    @DisplayName("30개의 이벤트를 10개씩 두번재 페이지 조회하기")
+    @DisplayName("30개의 이벤트를 10개씩 두번재 페이지 조회하기, 인증하지 않음")
     public void queryEvents() throws Exception {
         //given
 //        IntStream.range(0,30).forEach(i -> {
@@ -299,6 +299,66 @@ public class EventControllerTests extends BaseTest {
                                 fieldWithPath("_links.next.href").description("next page"),
                                 fieldWithPath("_links.last.href").description("last page"),
                                 fieldWithPath("_links.profile.href").description("link to profile")
+                        ).and(subsectionWithPath("_embedded").type(JsonFieldType.OBJECT).description("이벤트 리스트")) // 생략하고 싶을 때
+                ))
+        ;
+    }
+
+    @Test
+    @DisplayName("30개의 이벤트를 10개씩 두번재 페이지 조회하기, 사용자 인증")
+    public void queryEventsWithAuthentication() throws Exception {
+        //given
+        IntStream.range(0,30).forEach(this::generateEvent);
+        //when & then
+        mockMvc.perform(get("/api/events")
+                        .header(HttpHeaders.AUTHORIZATION, getBearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaTypes.HAL_JSON)
+                        .param("page", "1")
+                        .param("size","10")
+                        .param("sort", "name,DESC"))// 요청값 타입 설정 : json
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("page").exists())
+                .andExpect(jsonPath("_embedded.eventList[0]._links.self").exists())
+                .andExpect(jsonPath("_links.self").exists())
+                .andExpect(jsonPath("_links.profile").exists())
+                .andExpect(jsonPath("_links.create-event").exists())
+                .andDo(document("query_events",
+                        links(
+                                linkWithRel("self").description("link to self"),
+                                linkWithRel("first").description("first page"),
+                                linkWithRel("prev").description("previous page"),
+                                linkWithRel("next").description("next page"),
+                                linkWithRel("last").description("last page"),
+                                linkWithRel("profile").description("link to profile"),
+                                linkWithRel("create-event").description("link to create event")
+                        ),
+                        requestHeaders(
+                                headerWithName(HttpHeaders.ACCEPT).description("accept header"),
+                                headerWithName(HttpHeaders.CONTENT_TYPE).description("content type header")
+                        ),
+                        requestParameters(
+                                parameterWithName("size").description("한 페이지 당 개수"),
+                                parameterWithName("page").description("페이지 번호 0페이지 부터 시작"),
+                                parameterWithName("sort").description("검색 카테고리, 정렬")
+                        ),
+                        responseHeaders(
+//                                headerWithName(HttpHeaders.LOCATION).description("location header"),
+                                headerWithName(HttpHeaders.CONTENT_TYPE).description("content type header")
+                        ),
+                        responseFields(
+                                fieldWithPath("page.size").description("한 페이지 당 개수"),
+                                fieldWithPath("page.totalElements").description("전체 개수"),
+                                fieldWithPath("page.totalPages").description("전체 페이지 수"),
+                                fieldWithPath("page.number").description("페이지 수 0부터 시작"),
+                                fieldWithPath("_links.self.href").description("link to self"),
+                                fieldWithPath("_links.first.href").description("first page"),
+                                fieldWithPath("_links.prev.href").description("previous page"),
+                                fieldWithPath("_links.next.href").description("next page"),
+                                fieldWithPath("_links.last.href").description("last page"),
+                                fieldWithPath("_links.profile.href").description("link to profile"),
+                                fieldWithPath("_links.create-event.href").description("link to profile")
                         ).and(subsectionWithPath("_embedded").type(JsonFieldType.OBJECT).description("이벤트 리스트")) // 생략하고 싶을 때
                 ))
         ;
