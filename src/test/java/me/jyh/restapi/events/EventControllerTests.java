@@ -543,7 +543,6 @@ public class EventControllerTests extends BaseTest {
                 .build();
         accountService.saveAccount(account);
 
-        // when & then
         ResultActions perform = mockMvc.perform(post("/oauth/token")
                 .with(httpBasic(appProperties.getClientId(), appProperties.getClientSecret()))
                 .param("username", appProperties.getUserUsername())
